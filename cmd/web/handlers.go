@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"kemalulker/snippetbox/pkg/forms"
 	"kemalulker/snippetbox/pkg/models"
 	"net/http"
 	"strconv"
@@ -33,24 +34,39 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		app.serverError(w, err)
 	}
 
-	data := templateData{Snippet: s}
+	data := templateData{
+		Snippet: s,
+	}
 	app.render(w, r, "show.page.tmpl", &data)
 }
 
 func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Create new snippet form."))
+	app.render(w, r, "create.page.tmpl", &templateData{Form: forms.New(nil)})
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
-	title := "O snail"
-	content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\nKobayashi"
-	expires := "7"
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+	}
 
-	id, err := app.snippets.Insert(title, content, expires)
+	form := forms.New(r.PostForm)
+	form.Required("title", "content", "expires")
+	form.MaxLength("title", 100)
+	form.PermittedValues("expires", "365", "7", "1")
+
+	if !form.Valid() {
+		app.render(w, r, "create.page.tmpl", &templateData{Form: form})
+		return
+	}
+
+	id, err := app.snippets.Insert(form.Get("title"), form.Get("content"), form.Get("expires"))
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
+
+	app.session.Put(r, "flash", "New snippet created successfully!")
 
 	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
 }
