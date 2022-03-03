@@ -10,7 +10,7 @@ import (
 
 type templateData struct {
 	CurrentYear       int
-	AuthenticatedUser int
+	AuthenticatedUser *models.User
 	Snippet           *models.Snippet
 	Snippets          []*models.Snippet
 	Form              *forms.Form
